@@ -1,0 +1,44 @@
+{
+    "name": "webmamba/ag-ui-symfony-ai-bridge",
+    "description": "Provides integration for AG-UI with Symfony AI: any Symfony AI agent runs over the AG-UI protocol.",
+    "type": "library",
+    "keywords": [
+        "ag-ui",
+        "symfony-ai",
+        "bridge",
+        "agent",
+        "ai",
+        "sse"
+    ],
+    "homepage": "https://github.com/WebMamba/ag-ui-php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Matheo Daninos"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "phpstan/phpdoc-parser": "^2.0",
+        "symfony/ai-agent": "^1.0@beta",
+        "symfony/ai-platform": "^1.0@beta",
+        "symfony/property-access": "^8.0",
+        "symfony/property-info": "^8.0",
+        "symfony/serializer": "^8.0",
+        "symfony/service-contracts": "^3.5",
+        "symfony/uid": "^8.0",
+        "webmamba/ag-ui": "self.version"
+    },
+    "autoload": {
+        "psr-4": {
+            "AgUi\\Bridge\\SymfonyAi\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    }
+}
