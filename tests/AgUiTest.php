@@ -10,6 +10,7 @@ use AgUi\Bridge\SymfonyAi\Context\ContextEntry;
 use AgUi\Bridge\SymfonyAi\Exception\InvalidStateException;
 use AgUi\Bridge\SymfonyAi\Interrupt\ResumableTools;
 use AgUi\Bridge\SymfonyAi\Tests\Fixtures\AddToCart;
+use AgUi\Bridge\SymfonyAi\Tests\Fixtures\AddToCartOnApproval;
 use AgUi\Bridge\SymfonyAi\Tests\Fixtures\Cart;
 use AgUi\Bridge\SymfonyAi\Tests\Fixtures\GetForecast;
 use AgUi\Bridge\SymfonyAi\Tests\Fixtures\ReserveMooring;
@@ -223,6 +224,25 @@ final class AgUiTest extends TestCase
         self::assertSame([], $cart->items, 'The instance is reset after the run.');
     }
 
+    public function testAStateChangeMadeByAResumedToolIsSentAsADelta(): void
+    {
+        $cart = new Cart();
+        $events = $this->stream([[new ToolCallComplete([new ToolCall('call_6', 'add_to_cart_on_approval', ['sku' => 'B7'])])]], cart: $cart);
+        $interruptId = self::first($events, 'RUN_FINISHED')['outcome']['interrupts'][0]['id'];
+
+        $events = $this->stream(
+            [[new TextDelta('Added.')]],
+            messages: self::first($events, 'MESSAGES_SNAPSHOT')['messages'],
+            resume: [['interruptId' => $interruptId, 'status' => 'resolved', 'payload' => ['approved' => true]]],
+            state: ['items' => [['sku' => 'A1', 'qty' => 2]]],
+            cart: $cart,
+        );
+
+        self::assertSame(['items' => [['sku' => 'A1', 'qty' => 2]]], self::first($events, 'STATE_SNAPSHOT')['snapshot'], 'The snapshot is the state the client sent.');
+        self::assertSame([['op' => 'add', 'path' => '/items/-', 'value' => ['sku' => 'B7', 'qty' => 1]]], self::first($events, 'STATE_DELTA')['delta'], 'The client learns what the resumed tool changed.');
+        self::assertSame(['TOOL_CALL_RESULT', 'STATE_DELTA'], \array_slice(self::types($events), 2, 2), 'The delta follows its tool result.');
+    }
+
     public function testAStateThatDoesNotFitTheClassIsRejectedBeforeTheRun(): void
     {
         $this->expectException(InvalidStateException::class);
@@ -338,14 +358,15 @@ final class AgUiTest extends TestCase
         $this->sent = [];
         $this->rounds = [];
         $sentRounds = &$this->rounds;
+        $toolCart = $cart ?? new Cart();
         $agUi = new AgUi(
             secret: 'a test secret',
-            resumableTools: new ResumableTools([new ReserveMooring()]),
+            resumableTools: new ResumableTools([new ReserveMooring(), new AddToCartOnApproval($toolCart)]),
             context: $agentContext ?? new AgentContext(),
             stream: new RunStream(debug: true),
             validator: Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator(),
         );
-        $toolbox = $agUi->toolbox(new Toolbox([new GetForecast(), new ShowMap(), new AddToCart($cart ?? new Cart()), new ReserveMooring(), new SetTheme($this->theme)]));
+        $toolbox = $agUi->toolbox(new Toolbox([new GetForecast(), new ShowMap(), new AddToCart($toolCart), new ReserveMooring(), new AddToCartOnApproval($toolCart), new SetTheme($this->theme)]));
 
         $platform = MockPlatformFactory::createPlatform(static function (mixed $model, mixed $input) use (&$rounds, &$sentRounds): StreamResult {
             $sentRounds[] = $input;

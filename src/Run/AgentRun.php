@@ -337,12 +337,15 @@ final readonly class AgentRun
             $tool = $this->resumableTools?->get($toolCall->getName())
                 ?? throw new \RuntimeException(\sprintf('Tool "%s" cannot be resumed: it does not implement ResumableTool.', $toolCall->getName()));
 
+            $stateBefore = $this->state?->snapshot();
             $result = new ToolResult($toolCall, $tool->resume($toolCall->getArguments(), $resume));
             $changes = $this->scope->contextChanges();
             $bag = $bag->with(Message::ofToolCall($toolCall, (string) AgentContext::note($this->converter->convert($result), $changes)));
 
-            // The call itself was announced in the previous run: only its result is new.
+            // The call itself was announced in the previous run: only its result is new,
+            // and what the resumed tool changed in the shared state.
             yield from $this->toolResult($result, $transcript, $changes);
+            yield from $this->stateDelta($stateBefore);
         }
 
         return $bag;
