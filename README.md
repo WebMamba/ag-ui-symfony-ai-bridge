@@ -15,6 +15,10 @@ Installation
 composer require webmamba/ag-ui-symfony-ai-bridge
 ```
 
+Symfony AI is in beta: Composer installs it only if your `composer.json` allows it,
+with `"minimum-stability": "beta"` or with each `symfony/ai-*` package it needs
+required as `^1.0@beta`, as when you installed Symfony AI.
+
 Usage
 -----
 
